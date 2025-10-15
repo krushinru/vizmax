@@ -107,13 +107,19 @@
             font-size: 13px;
         }
         
-        input[type="number"], input[type="text"], select {
+        input[type="number"], input[type="text"], select, textarea {
             width: 100%;
             padding: 8px 10px;
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 13px;
             background: white;
+            font-family: inherit;
+        }
+        
+        textarea {
+            min-height: 60px;
+            resize: vertical;
         }
         
         input[type="checkbox"] {
@@ -262,6 +268,13 @@
             margin-bottom: 8px;
         }
         
+        .list-item-description {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+        
         .category-tag {
             display: inline-block;
             background: #e3f2fd;
@@ -333,24 +346,18 @@
                     </div>
                 </div>
                 
-                <!-- Фильтр по активности -->
-                <div class="filter-group">
-                    <h3>⚡ Активность</h3>
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="filterActive" checked>
-                        <label for="filterActive">Активные в последний месяц</label>
-                    </div>
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="filterInactive" checked>
-                        <label for="filterInactive">Неактивные каналы</label>
-                    </div>
-                </div>
-                
                 <!-- Фильтр по названию -->
                 <div class="filter-group">
                     <h3>🔤 Поиск по названию</h3>
                     <label>Содержит текст</label>
                     <input type="text" id="searchName" placeholder="Введите текст для поиска">
+                </div>
+                
+                <!-- Фильтр по описанию -->
+                <div class="filter-group">
+                    <h3>📄 Поиск по описанию</h3>
+                    <label>Содержит текст</label>
+                    <textarea id="searchDescription" placeholder="Введите ключевые слова для поиска в описании канала"></textarea>
                 </div>
                 
                 <!-- Фильтр по username -->
@@ -497,9 +504,8 @@
             const maxSubs = parseInt(document.getElementById('maxSubscribers').value) || Infinity;
             const minPosts = parseInt(document.getElementById('minPosts').value) || 0;
             const maxPosts = parseInt(document.getElementById('maxPosts').value) || Infinity;
-            const filterActive = document.getElementById('filterActive').checked;
-            const filterInactive = document.getElementById('filterInactive').checked;
             const searchName = document.getElementById('searchName').value.toLowerCase();
+            const searchDescription = document.getElementById('searchDescription').value.toLowerCase();
             const searchUsername = document.getElementById('searchUsername').value.toLowerCase();
             const selectedCategories = Array.from(document.getElementById('categoryFilter').selectedOptions).map(opt => parseInt(opt.value));
             const minSubsPerPost = parseFloat(document.getElementById('minSubsPerPost').value) || 0;
@@ -514,12 +520,14 @@
                 // Фильтр по постам
                 if (channel.post_count < minPosts || channel.post_count > maxPosts) return false;
                 
-                // Фильтр по активности
-                if (!filterActive && channel.active_last_month) return false;
-                if (!filterInactive && !channel.active_last_month) return false;
-                
                 // Поиск по названию
                 if (searchName && !channel.channel_name.toLowerCase().includes(searchName)) return false;
+                
+                // Поиск по описанию
+                if (searchDescription && channel.channel_description) {
+                    const description = channel.channel_description.toLowerCase();
+                    if (!description.includes(searchDescription)) return false;
+                }
                 
                 // Поиск по username
                 if (searchUsername && !channel.username.toLowerCase().includes(searchUsername)) return false;
@@ -558,9 +566,8 @@
             document.getElementById('maxSubscribers').value = '';
             document.getElementById('minPosts').value = '';
             document.getElementById('maxPosts').value = '';
-            document.getElementById('filterActive').checked = true;
-            document.getElementById('filterInactive').checked = true;
             document.getElementById('searchName').value = '';
+            document.getElementById('searchDescription').value = '';
             document.getElementById('searchUsername').value = '';
             document.getElementById('categoryFilter').selectedIndex = -1;
             document.getElementById('minSubsPerPost').value = '';
@@ -701,7 +708,7 @@
                             <th>Посты</th>
                             <th>Подп./Пост</th>
                             <th>Категории</th>
-                            <th>Активен</th>
+                            <th>Описание</th>
                             <th>Дата обновления</th>
                             <th>Ссылка</th>
                         </tr>
@@ -714,7 +721,7 @@
                                 <td>${ch.post_count.toLocaleString()}</td>
                                 <td>${ch.post_count > 0 ? Math.round(ch.subscribers_count / ch.post_count) : 'N/A'}</td>
                                 <td>${ch.categories.map(cat => cat.title).join(', ')}</td>
-                                <td>${ch.active_last_month ? '✅' : '❌'}</td>
+                                <td>${ch.channel_description ? (ch.channel_description.length > 100 ? ch.channel_description.substring(0, 100) + '...' : ch.channel_description) : 'Нет описания'}</td>
                                 <td>${ch.updated_at ? new Date(ch.updated_at).toLocaleDateString('ru-RU') : 'N/A'}</td>
                                 <td><a href="${ch.link}" target="_blank">Открыть</a></td>
                             </tr>
@@ -761,9 +768,9 @@
                             <div class="list-item-meta">
                                 👥 ${ch.subscribers_count.toLocaleString()} подписчиков | 
                                 📝 ${ch.post_count.toLocaleString()} постов | 
-                                📊 ${ch.post_count > 0 ? Math.round(ch.subscribers_count / ch.post_count) : 'N/A'} подп./пост |
-                                ${ch.active_last_month ? '✅ Активен' : '❌ Неактивен'}
+                                📊 ${ch.post_count > 0 ? Math.round(ch.subscribers_count / ch.post_count) : 'N/A'} подп./пост
                             </div>
+                            ${ch.channel_description ? `<div class="list-item-description">${ch.channel_description.length > 200 ? ch.channel_description.substring(0, 200) + '...' : ch.channel_description}</div>` : ''}
                             <div>
                                 ${ch.categories.map(cat => `<span class="category-tag">${cat.title}</span>`).join('')}
                             </div>
@@ -794,7 +801,7 @@
         
         // Экспорт в CSV
         function exportCSV() {
-            const headers = ['ID', 'Название', 'Username', 'Подписчики', 'Посты', 'Подп./Пост', 'Активен', 'Категории', 'Дата обновления', 'Ссылка'];
+            const headers = ['ID', 'Название', 'Username', 'Подписчики', 'Посты', 'Подп./Пост', 'Описание', 'Категории', 'Дата обновления', 'Ссылка'];
             const rows = filteredChannels.map(ch => [
                 ch.id,
                 `"${ch.channel_name.replace(/"/g, '""')}"`,
@@ -802,7 +809,7 @@
                 ch.subscribers_count,
                 ch.post_count,
                 ch.post_count > 0 ? Math.round(ch.subscribers_count / ch.post_count) : 0,
-                ch.active_last_month ? 'Да' : 'Нет',
+                `"${(ch.channel_description || '').replace(/"/g, '""')}"`,
                 `"${ch.categories.map(cat => cat.title).join(', ')}"`,
                 ch.updated_at || '',
                 ch.link
