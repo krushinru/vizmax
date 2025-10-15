@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Визуализатор данных каналов</title>
+    
+    <!-- Chart.js для графиков -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- DataTables для таблиц -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card h3 {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+        
+        .controls {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 14px;
+        }
+        
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        .chart-container {
+            margin: 30px 0;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .chart-container h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        
+        canvas {
+            max-height: 400px;
+        }
+        
+        table.dataTable {
+            width: 100% !important;
+            margin-top: 20px !important;
+        }
+        
+        .dataTables_wrapper {
+            margin-top: 30px;
+        }
+        
+        .list-container {
+            margin: 30px 0;
+        }
+        
+        .list-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .list-item img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        
+        .list-item-content {
+            flex: 1;
+        }
+        
+        .list-item-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .list-item-meta {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .category-tag {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-right: 5px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Визуализатор данных каналов</h1>
+        <p style="color: #666; margin-bottom: 20px;">Интерактивный анализ данных из JSON</p>
+        
+        <div class="stats" id="statsContainer"></div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>Тип визуализации:</label>
+                <select id="chartType">
+                    <option value="bar">Столбчатая диаграмма</option>
+                    <option value="line">Линейный график</option>
+                    <option value="pie">Круговая диаграмма</option>
+                    <option value="doughnut">Кольцевая диаграмма</option>
+                    <option value="table">Таблица</option>
+                    <option value="list">Список</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>Метрика для отображения:</label>
+                <select id="metric">
+                    <option value="subscribers_count">Количество подписчиков</option>
+                    <option value="post_count">Количество постов</option>
+                    <option value="categories">Категории каналов</option>
+                    <option value="active_channels">Активные каналы</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>Количество топ-каналов:</label>
+                <input type="number" id="topCount" value="10" min="5" max="50">
+            </div>
+            
+            <button onclick="updateVisualization()">🔄 Обновить визуализацию</button>
+        </div>
+        
+        <div class="chart-container" id="chartContainer" style="display: none;">
+            <h2 id="chartTitle">График</h2>
+            <canvas id="myChart"></canvas>
+        </div>
+        
+        <div id="tableContainer"></div>
+        <div id="listContainer" class="list-container"></div>
+    </div>
+    
+    <script>
+        let channelsData = null;
+        let currentChart = null;
+        
+        // Загрузка JSON файла
+        async function loadData() {
+            try {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                
+                input.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    const text = await file.text();
+                    channelsData = JSON.parse(text);
+                    
+                    showStats();
+                    updateVisualization();
+                };
+                
+                input.click();
+            } catch (error) {
+                console.error('Ошибка загрузки данных:', error);
+            }
+        }
+        
+        // Автозагрузка при наличии файла в input
+        window.onload = function() {
+            // Для примера используем встроенные данные
+            // В реальном использовании замените на loadData()
+            fetch('all_channels.json')
+                .then(response => response.json())
+                .then(data => {
+                    channelsData = data;
+                    showStats();
+                    updateVisualization();
+                })
+                .catch(error => {
+                    alert('Пожалуйста, убедитесь, что файл all_channels.json находится в той же папке');
+                    console.error('Ошибка:', error);
+                });
+        };
+        
+        // Показать статистику
+        function showStats() {
+            if (!channelsData) return;
+            
+            const totalChannels = channelsData.total || channelsData.channels.length;
+            const totalSubscribers = channelsData.channels.reduce((sum, ch) => sum + ch.subscribers_count, 0);
+            const totalPosts = channelsData.channels.reduce((sum, ch) => sum + ch.post_count, 0);
+            const activeChannels = channelsData.channels.filter(ch => ch.active_last_month).length;
+            
+            const statsHTML = `
+                <div class="stat-card">
+                    <h3>Всего каналов</h3>
+                    <div class="value">${totalChannels.toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Всего подписчиков</h3>
+                    <div class="value">${(totalSubscribers / 1000000).toFixed(1)}M</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Всего постов</h3>
+                    <div class="value">${totalPosts.toLocaleString()}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Активных каналов</h3>
+                    <div class="value">${activeChannels.toLocaleString()}</div>
+                </div>
+            `;
+            
+            document.getElementById('statsContainer').innerHTML = statsHTML;
+        }
+        
+        // Обновление визуализации
+        function updateVisualization() {
+            if (!channelsData) return;
+            
+            const chartType = document.getElementById('chartType').value;
+            const metric = document.getElementById('metric').value;
+            const topCount = parseInt(document.getElementById('topCount').value);
+            
+            document.getElementById('chartContainer').style.display = 'none';
+            document.getElementById('tableContainer').innerHTML = '';
+            document.getElementById('listContainer').innerHTML = '';
+            
+            if (chartType === 'table') {
+                showTable(metric, topCount);
+            } else if (chartType === 'list') {
+                showList(metric, topCount);
+            } else {
+                showChart(chartType, metric, topCount);
+            }
+        }
+        
+        // Отображение графика
+        function showChart(chartType, metric, topCount) {
+            let data, labels, title;
+            
+            if (metric === 'categories') {
+                const categoryCounts = {};
+                channelsData.channels.forEach(channel => {
+                    channel.categories.forEach(cat => {
+                        categoryCounts[cat.title] = (categoryCounts[cat.title] || 0) + 1;
+                    });
+                });
+                
+                const sorted = Object.entries(categoryCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, topCount);
+                
+                labels = sorted.map(item => item[0]);
+                data = sorted.map(item => item[1]);
+                title = `Топ-${topCount} категорий по количеству каналов`;
+            } else if (metric === 'active_channels') {
+                const active = channelsData.channels.filter(ch => ch.active_last_month).length;
+                const inactive = channelsData.channels.length - active;
+                labels = ['Активные', 'Неактивные'];
+                data = [active, inactive];
+                title = 'Распределение активных и неактивных каналов';
+            } else {
+                const sorted = [...channelsData.channels]
+                    .sort((a, b) => b[metric] - a[metric])
+                    .slice(0, topCount);
+                
+                labels = sorted.map(ch => ch.channel_name);
+                data = sorted.map(ch => ch[metric]);
+                title = `Топ-${topCount} каналов по ${metric === 'subscribers_count' ? 'подписчикам' : 'постам'}`;
+            }
+            
+            document.getElementById('chartContainer').style.display = 'block';
+            document.getElementById('chartTitle').textContent = title;
+            
+            if (currentChart) {
+                currentChart.destroy();
+            }
+            
+            const ctx = document.getElementById('myChart').getContext('2d');
+            
+            const colors = [
+                '#667eea', '#764ba2', '#f093fb', '#4facfe',
+                '#43e97b', '#fa709a', '#fee140', '#30cfd0',
+                '#a8edea', '#fed6e3'
+            ];
+            
+            currentChart = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: metric === 'subscribers_count' ? 'Подписчики' : 'Посты',
+                        data: data,
+                        backgroundColor: chartType === 'pie' || chartType === 'doughnut' 
+                            ? colors 
+                            : 'rgba(102, 126, 234, 0.7)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: chartType === 'pie' || chartType === 'doughnut'
+                        }
+                    },
+                    scales: chartType !== 'pie' && chartType !== 'doughnut' ? {
+                        y: {
+                            beginAtZero: true
+                        }
+                    } : {}
+                }
+            });
+        }
+        
+        // Отображение таблицы
+        function showTable(metric, topCount) {
+            let channels = [...channelsData.channels];
+            
+            if (metric !== 'categories') {
+                channels = channels
+                    .sort((a, b) => b[metric] - a[metric])
+                    .slice(0, topCount);
+            }
+            
+            const tableHTML = `
+                <table id="channelsTable" class="display" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th>Подписчики</th>
+                            <th>Посты</th>
+                            <th>Категории</th>
+                            <th>Активен</th>
+                            <th>Username</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${channels.map(ch => `
+                            <tr>
+                                <td>${ch.channel_name}</td>
+                                <td>${ch.subscribers_count.toLocaleString()}</td>
+                                <td>${ch.post_count.toLocaleString()}</td>
+                                <td>${ch.categories.map(cat => cat.title).join(', ')}</td>
+                                <td>${ch.active_last_month ? '✅' : '❌'}</td>
+                                <td><a href="${ch.link}" target="_blank">@${ch.username}</a></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            document.getElementById('tableContainer').innerHTML = tableHTML;
+            
+            $('#channelsTable').DataTable({
+                pageLength: 25,
+                order: [[1, 'desc']],
+                language: {
+                    search: "Поиск:",
+                    lengthMenu: "Показать _MENU_ записей",
+                    info: "Показано _START_ до _END_ из _TOTAL_ записей",
+                    paginate: {
+                        first: "Первая",
+                        last: "Последняя",
+                        next: "Следующая",
+                        previous: "Предыдущая"
+                    }
+                }
+            });
+        }
+        
+        // Отображение списка
+        function showList(metric, topCount) {
+            let channels = [...channelsData.channels]
+                .sort((a, b) => b[metric === 'subscribers_count' ? 'subscribers_count' : 'post_count'] - a[metric === 'subscribers_count' ? 'subscribers_count' : 'post_count'])
+                .slice(0, topCount);
+            
+            const listHTML = channels.map((ch, index) => `
+                <div class="list-item">
+                    <img src="${ch.avatar_url}" alt="${ch.channel_name}" onerror="this.src='https://via.placeholder.com/50'">
+                    <div class="list-item-content">
+                        <div class="list-item-title">${index + 1}. ${ch.channel_name}</div>
+                        <div class="list-item-meta">
+                            👥 ${ch.subscribers_count.toLocaleString()} подписчиков | 
+                            📝 ${ch.post_count.toLocaleString()} постов | 
+                            ${ch.active_last_month ? '✅ Активен' : '❌ Неактивен'}
+                        </div>
+                        <div>
+                            ${ch.categories.map(cat => `<span class="category-tag">${cat.title}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('listContainer').innerHTML = listHTML;
+        }
+    </script>
+</body>
+</html>
